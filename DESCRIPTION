@@ -1,0 +1,13 @@
+Package: testall
+Title: A test package to sanity check argument dependencies within selfwritten
+       functions
+Version: 0.0.0.9000
+Authors@R: person("Andre", "Bleier", email = "andrebleier@live.de", role = c("aut", "cre"))
+Description: This package tests the outcome of a function under varying argument
+             types. The user can create a grid of scenarios to be tested, while the
+             function returns a summary of all scenarios and possible errors.
+Depends: R (>= 3.5), purrr, dplyr, reshape2
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1
