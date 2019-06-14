@@ -1,6 +1,15 @@
+#' @param x an object of class \code{testall_summary}
+#' @param ... arguments to be passed to the method
+#' @rdname test_all
+#' @method print testall_summary
+#' @export
+#' @examples
+#' # NOT RUN:
+#' my_sug <- test_all(mean, input = list(x = c('1','2','3')))
+#' my_sug
 print.testall_summary <- function(x, ...) {
   sug_list <- x$suggestion
-  # print suggestion to console
+
   sug_to_cons <- function(i, x) {
     cat(paste0(rep(".", options()$width), collapse = ""), "\n")
     cat(names(x)[i], "\n")
