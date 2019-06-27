@@ -10,7 +10,7 @@
 #' \item The function call (arguments)
 #' \item In how many occurences it threw an error
 #' }
-#' @import dplyr purrr reshape2
+#' @import dplyr purrr reshape2 rlist
 #' @export
 #'
 #' @examples
@@ -36,11 +36,11 @@ test_all <- function(fun, input, output = NULL, cores = 1) {
                        error = function(e) {
                          e <- as.character(e)
                          if (grepl("[:]", e))
-                            e <- gsub(".*[[:blank:]]?[:][[:blank:]]?(.*)", "\\1", e)
+                           e <- gsub(".*[[:blank:]]?[:][[:blank:]]?(.*)", "\\1", e)
                          e <- gsub("\n", "", e)
                          class(e) <- c(class(e), 'error')
                          return(e)
-                         })
+                       })
 
     if (inherits(tested, 'error')) {
       return(tested)
@@ -49,13 +49,14 @@ test_all <- function(fun, input, output = NULL, cores = 1) {
     }
   }
 
-  tests <- expand.grid(input)
+  tests <- do.call(what = list.expand, args = input)
 
-  errors <- vector(length = nrow(tests))
-  for (i in seq_len(nrow(tests))) {
+  errors <- vector(length = length(tests))
+  for (i in seq_len(length(tests))) {
     errors[i] <- test_single(fun = fun,
-                             args = lapply(tests[i,], function(x) x[[1]])
-                             )
+                             #args = lapply(tests[[i]], function(x) x[1])
+                             args = tests[[i]]
+    )
 
   }
 
@@ -63,10 +64,16 @@ test_all <- function(fun, input, output = NULL, cores = 1) {
   stats <- which(!sapply(errors, function(x) x == "success"))
 
   # add errors
-  tests$test_all_errors <- unlist(errors)
+  #tests$test_all_errors <- unlist(errors)
+
+  tests <- lapply(seq_along(tests), function(i) {
+    tests[[i]]$test_all_errors <- errors[[i]]
+    return(tests[[i]])})
 
   # characterize everything
-  tests_char <- data.frame(lapply(tests, function(x) as.character(x)))
+  #tests_char <- data.frame(lapply(tests, function(x) as.character(x)))
+  tests_char <- as.data.frame(do.call(rbind, lapply(tests, function(x) as.character(x))))
+  names(tests_char) <- names(tests[[1]])
 
   tests_long <- suppressWarnings(reshape2::melt(tests_char, 'test_all_errors'))
 
@@ -88,24 +95,27 @@ test_all <- function(fun, input, output = NULL, cores = 1) {
   # this is the error metric at this time, when the argument fails compared to
   # the relative frequency of the argument
   error_rel <- suppressMessages(error_table %>%
-    group_by(argument) %>%
-    mutate_if(is.numeric, funs(./sum(.)-1/n())) %>%
-    ungroup())
+                                  group_by(argument) %>%
+                                  mutate_if(is.numeric, funs(./sum(.)-1/n())) %>%
+                                  ungroup())
 
   # extract the suggestion (error_rel > 0) from the error table
+  this_cols <- error_rel %>% select_if(is.numeric) %>%
+    names %>% setdiff(., "success")
+
   sug_list <- error_rel %>% select_if(is.numeric) %>%
-    dplyr::select(-success) %>%
+    dplyr::select(one_of(this_cols)) %>%
     map(function(x, df) {
-    which_max <- function(x) {
-     which(x == max(x, na.rm = TRUE))
-    }
-    ind <- which_max(x)
-    arguments <- df[ind, "call"]
-    data.frame(arguments)
-  }, df = error_rel)
+      which_max <- function(x) {
+        which(x == max(x, na.rm = TRUE))
+      }
+      ind <- which_max(x)
+      arguments <- df[ind, "call"]
+      data.frame(arguments)
+    }, df = error_rel)
 
   # return elements
-  out <- list(tests = tests[stats,],
+  out <- list(tests = tests[stats],
               suggestion = sug_list,
               fun = fun_name)
 
